@@ -1,0 +1,4093 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1"
+  >
+
+  <title>Raven Rock Trail Network</title>
+
+  <style>
+    :root {
+      --yellow: #FFEA00;
+      --cream: #F2EEE4;
+      --white: #FFFFFF;
+
+      --green: #39D353;
+      --blue: #2589FF;
+      --red: #FF3B30;
+      --black: #111111;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+
+      margin: 0;
+      overflow: hidden;
+
+      background: #080a09;
+
+      font-family:
+        "Helvetica Neue",
+        Arial,
+        sans-serif;
+    }
+
+
+    /* ==================================================
+       MAP
+    ================================================== */
+
+    #map {
+      position: absolute;
+      inset: 0;
+
+      width: 100%;
+      height: 100%;
+
+      z-index: 1;
+    }
+
+    .map-darken {
+      position: absolute;
+      inset: 0;
+
+      z-index: 5;
+
+      pointer-events: none;
+
+      background:
+        rgba(0,0,0,.30);
+    }
+
+    .map-vignette {
+      position: absolute;
+      inset: 0;
+
+      z-index: 6;
+
+      pointer-events: none;
+
+      background:
+        radial-gradient(
+          ellipse at 50% 44%,
+          transparent 16%,
+          rgba(0,0,0,.04) 30%,
+          rgba(0,0,0,.18) 48%,
+          rgba(0,0,0,.46) 68%,
+          rgba(0,0,0,.76) 86%,
+          rgba(0,0,0,.92) 100%
+        );
+    }
+
+
+    /* ==================================================
+       ROUTE
+    ================================================== */
+
+    #routeOverlay {
+      position: absolute;
+      inset: 0;
+
+      width: 100%;
+      height: 100%;
+
+      z-index: 10;
+
+      overflow: visible;
+
+      pointer-events: none;
+    }
+
+    #routePath {
+      fill: none;
+
+      stroke: var(--yellow);
+
+      stroke-width: 5;
+
+      stroke-linecap: round;
+      stroke-linejoin: round;
+
+      stroke-dasharray: 7 15;
+
+      vector-effect:
+        non-scaling-stroke;
+
+      filter:
+        drop-shadow(
+          0 1px 1px rgba(0,0,0,.95)
+        )
+        drop-shadow(
+          0 3px 4px rgba(0,0,0,.60)
+        )
+        drop-shadow(
+          0 7px 10px rgba(0,0,0,.30)
+        );
+
+      pointer-events: stroke;
+
+      cursor: pointer;
+    }
+
+    body.merge-active
+    #routePath {
+      stroke-width: 5.7;
+
+      cursor: crosshair;
+    }
+
+
+    /* ==================================================
+       BRAND
+    ================================================== */
+
+    .brand {
+      position: absolute;
+
+      top: 27px;
+      right: 34px;
+
+      z-index: 30;
+
+      color: var(--cream);
+
+      text-align: right;
+
+      pointer-events: none;
+
+      text-shadow:
+        0 3px 14px rgba(0,0,0,.95);
+    }
+
+    .brand-mountain {
+      display: flex;
+      justify-content: flex-end;
+
+      margin-bottom: 8px;
+    }
+
+    .mountain-logo {
+      width: 78px;
+      height: 29px;
+    }
+
+    .mountain-logo path {
+      fill: none;
+
+      stroke: var(--yellow);
+
+      stroke-width: 2;
+
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .brand-main {
+      font-size: 23px;
+
+      font-weight: 800;
+
+      line-height: 1;
+
+      letter-spacing: .20em;
+    }
+
+    .brand-sub {
+      margin-top: 6px;
+
+      color: var(--yellow);
+
+      font-size: 9px;
+
+      font-weight: 900;
+
+      letter-spacing: .34em;
+    }
+
+
+    /* ==================================================
+       COMPASS
+    ================================================== */
+
+    .compass {
+      position: absolute;
+
+      top: 26px;
+      left: 25px;
+
+      z-index: 30;
+
+      width: 58px;
+
+      color: var(--yellow);
+
+      text-align: center;
+
+      pointer-events: none;
+
+      text-shadow:
+        0 3px 10px rgba(0,0,0,.9);
+    }
+
+    .compass-n {
+      font-size: 8px;
+
+      font-weight: 900;
+
+      letter-spacing: .15em;
+    }
+
+    .compass-svg {
+      width: 46px;
+      height: 46px;
+
+      margin-top: 3px;
+    }
+
+    .compass-svg line,
+    .compass-svg polygon,
+    .compass-svg circle {
+      stroke: var(--yellow);
+
+      fill: none;
+
+      stroke-width: 1.2;
+    }
+
+    .compass-svg .north {
+      fill: var(--yellow);
+    }
+
+    .compass-label {
+      margin-top: 2px;
+
+      font-size: 7px;
+
+      font-weight: 800;
+
+      letter-spacing: .15em;
+    }
+
+
+    /* ==================================================
+       ROUTE TITLE
+    ================================================== */
+
+    .route-title-overlay {
+      position: absolute;
+
+      left: 9.5vw;
+      bottom: 170px;
+
+      z-index: 30;
+
+      width:
+        min(760px, calc(100vw - 80px));
+
+      pointer-events: none;
+
+      text-shadow:
+        0 3px 8px rgba(0,0,0,.95),
+        0 8px 24px rgba(0,0,0,.85);
+
+      /*
+        HIGHLINE glir opp/ned når
+        Trail Details åpnes/lukkes.
+      */
+
+      transition:
+        bottom .32s
+        cubic-bezier(.22,.61,.36,1);
+    }
+
+    .route-title-decoration {
+      display: flex;
+
+      align-items: center;
+
+      gap: 10px;
+
+      margin-bottom: 8px;
+    }
+
+    .route-title-line {
+      width: 36px;
+      height: 1px;
+
+      background: var(--yellow);
+    }
+
+    .route-title-mountain {
+      width: 44px;
+      height: 21px;
+    }
+
+    .route-title-mountain path {
+      fill: none;
+
+      stroke: var(--yellow);
+
+      stroke-width: 1.9;
+
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .route-title {
+      margin: 0;
+
+      color: var(--cream);
+
+      font-family:
+        Impact,
+        Haettenschweiler,
+        "Arial Narrow Bold",
+        "Arial Black",
+        sans-serif;
+
+      font-size:
+        clamp(48px, 7vw, 84px);
+
+      line-height: .82;
+
+      font-weight: 900;
+
+      letter-spacing: .025em;
+
+      text-transform: uppercase;
+    }
+
+    .route-sector {
+      margin-top: 10px;
+
+      color: var(--yellow);
+
+      font-size: 9px;
+
+      font-weight: 900;
+
+      letter-spacing: .32em;
+    }
+
+
+    /* ==================================================
+       MARKERS
+    ================================================== */
+
+    .map-marker {
+      position: absolute;
+
+      z-index: 18;
+
+      display: none;
+
+      align-items: center;
+
+      transform:
+        translate(-14px,-14px);
+
+      white-space: nowrap;
+
+      pointer-events: none;
+
+      text-shadow:
+        0 2px 5px rgba(0,0,0,1),
+        0 4px 12px rgba(0,0,0,.8);
+    }
+
+    .marker-symbol {
+      width: 27px;
+      height: 27px;
+
+      flex: 0 0 27px;
+
+      display: grid;
+
+      place-items: center;
+
+      border:
+        2px solid var(--yellow);
+
+      border-radius: 50%;
+
+      background:
+        rgba(8,10,9,.92);
+
+      box-shadow:
+        0 2px 5px rgba(0,0,0,.75),
+        0 5px 14px rgba(0,0,0,.42);
+    }
+
+    .marker-dot {
+      width: 7px;
+      height: 7px;
+
+      border-radius: 50%;
+
+      background: var(--cream);
+    }
+
+    .marker-copy {
+      margin-left: 9px;
+    }
+
+    .marker-value {
+      color: white;
+
+      font-size: 13px;
+
+      font-weight: 800;
+    }
+
+    .marker-type {
+      margin-top: 2px;
+
+      color: var(--yellow);
+
+      font-size: 7px;
+
+      font-weight: 900;
+
+      letter-spacing: .20em;
+    }
+
+    .endpoint-marker
+    .marker-symbol {
+      width: 21px;
+      height: 21px;
+
+      flex-basis: 21px;
+    }
+
+    .endpoint-marker
+    .marker-dot {
+      width: 5px;
+      height: 5px;
+    }
+
+    .marker-high-icon {
+      width: 15px;
+      height: 12px;
+    }
+
+    .marker-high-icon path {
+      fill: none;
+
+      stroke: var(--cream);
+
+      stroke-width: 1.8;
+
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .marker-low-icon {
+      position: relative;
+
+      width: 14px;
+      height: 10px;
+
+      border-bottom:
+        2px solid var(--cream);
+    }
+
+    .marker-low-icon::before {
+      content: "";
+
+      position: absolute;
+
+      left: 2px;
+      right: 2px;
+      bottom: 4px;
+
+      height: 2px;
+
+      background: var(--cream);
+
+      opacity: .65;
+    }
+
+
+    /* ==================================================
+       MERGE
+    ================================================== */
+
+    .merge-marker
+    .marker-symbol {
+      background: var(--yellow);
+
+      border-color: var(--yellow);
+    }
+
+    .merge-icon {
+      position: relative;
+
+      width: 13px;
+      height: 13px;
+    }
+
+    .merge-icon::before,
+    .merge-icon::after {
+      content: "";
+
+      position: absolute;
+
+      left: 50%;
+      top: 50%;
+
+      width: 12px;
+      height: 2px;
+
+      background: #111;
+    }
+
+    .merge-icon::before {
+      transform:
+        translate(-50%,-50%)
+        rotate(45deg);
+    }
+
+    .merge-icon::after {
+      transform:
+        translate(-50%,-50%)
+        rotate(-45deg);
+    }
+
+    body:not(.admin-mode)
+    #mergeMarker {
+      display: none !important;
+    }
+
+
+    /* ==================================================
+       BOTTOM INFO
+    ================================================== */
+
+    .bottom-ui {
+      position: absolute;
+
+      /*
+        Samme venstrelinje som HIGHLINE
+      */
+
+      left: 9.5vw;
+
+      bottom: 28px;
+
+      z-index: 35;
+
+      width:
+        min(560px, calc(100vw - 120px));
+
+      color: var(--cream);
+    }
+
+    .route-card {
+      padding:
+        12px 16px 10px;
+
+      border:
+        1px solid rgba(255,255,255,.11);
+
+      border-radius: 12px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(7,9,8,.95),
+          rgba(10,12,11,.85)
+        );
+
+      backdrop-filter:
+        blur(17px);
+
+      box-shadow:
+        0 16px 48px rgba(0,0,0,.48);
+    }
+
+    .route-stats {
+      display: flex;
+
+      align-items: flex-start;
+
+      gap: 36px;
+    }
+
+    .stat {
+      min-width: 0;
+    }
+
+    .stat-value {
+      min-height: 18px;
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 7px;
+
+      color: white;
+
+      font-size: 15px;
+
+      font-weight: 800;
+    }
+
+    .stat-label {
+      margin-top: 4px;
+
+      color:
+        rgba(255,255,255,.38);
+
+      font-size: 7px;
+
+      font-weight: 900;
+
+      letter-spacing: .16em;
+    }
+
+
+    /* ==================================================
+       DIFFICULTY
+    ================================================== */
+
+    .difficulty-dot {
+      width: 17px;
+      height: 17px;
+
+      display: inline-block;
+
+      border-radius: 50%;
+
+      border:
+        2px solid rgba(255,255,255,.85);
+
+      box-shadow:
+        0 2px 7px rgba(0,0,0,.65);
+    }
+
+    .difficulty-red {
+      background: var(--red);
+    }
+
+
+    /* ==================================================
+       DETAILS
+    ================================================== */
+
+    .details-toggle {
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      margin-top: 9px;
+
+      padding-top: 8px;
+
+      border-top:
+        1px solid rgba(255,255,255,.08);
+
+      cursor: pointer;
+
+      user-select: none;
+    }
+
+    .details-toggle-title {
+      color: var(--yellow);
+
+      font-size: 8px;
+
+      font-weight: 900;
+
+      letter-spacing: .23em;
+    }
+
+    .details-arrow {
+      width: 24px;
+      height: 24px;
+
+      display: grid;
+
+      place-items: center;
+
+      border-radius: 50%;
+
+      background:
+        rgba(255,255,255,.07);
+
+      color: var(--yellow);
+
+      font-size: 9px;
+
+      transition:
+        transform .2s ease;
+    }
+
+    .route-card.expanded
+    .details-arrow {
+      transform:
+        rotate(180deg);
+    }
+
+    .details-body {
+      display: none;
+
+      padding-top: 13px;
+    }
+
+    .route-card.expanded
+    .details-body {
+      display: block;
+    }
+
+    .details-grid {
+      display: grid;
+
+      grid-template-columns:
+        minmax(170px,.85fr)
+        minmax(240px,1.4fr);
+
+      gap: 20px;
+    }
+
+    .route-description {
+      color:
+        rgba(255,255,255,.68);
+
+      font-size: 11px;
+
+      line-height: 1.5;
+    }
+
+
+    /* ==================================================
+       ELEVATION PROFILE
+    ================================================== */
+
+    .elevation-heading {
+      display: flex;
+
+      justify-content: space-between;
+
+      margin-bottom: 7px;
+    }
+
+    .elevation-title {
+      color:
+        rgba(255,255,255,.42);
+
+      font-size: 7px;
+
+      font-weight: 900;
+
+      letter-spacing: .18em;
+    }
+
+    .elevation-range {
+      color:
+        rgba(255,255,255,.72);
+
+      font-size: 9px;
+
+      font-weight: 800;
+    }
+
+    .elevation-chart {
+      width: 100%;
+      height: 80px;
+    }
+
+    .elevation-grid {
+      stroke:
+        rgba(255,255,255,.06);
+
+      stroke-width: 1;
+    }
+
+    .elevation-baseline {
+      stroke:
+        rgba(255,255,255,.14);
+
+      stroke-width: 1;
+    }
+
+    #elevationFill {
+      fill:
+        rgba(255,234,0,.07);
+    }
+
+    #elevationPath {
+      fill: none;
+
+      stroke: var(--yellow);
+
+      stroke-width: 2;
+
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+
+    /* ==================================================
+       ADMIN
+    ================================================== */
+
+    .admin-badge {
+      position: absolute;
+
+      left: 24px;
+      top: 112px;
+
+      z-index: 50;
+
+      display: none;
+
+      padding:
+        7px 10px;
+
+      border-radius: 7px;
+
+      background: var(--yellow);
+
+      color: #111;
+
+      font-size: 8px;
+
+      font-weight: 900;
+    }
+
+    body.admin-mode
+    .admin-badge {
+      display: block;
+    }
+
+    .editor {
+      position: absolute;
+
+      left: 24px;
+      top: 148px;
+
+      z-index: 60;
+
+      width: 255px;
+
+      display: none;
+
+      padding: 17px;
+
+      color: white;
+
+      background:
+        rgba(8,10,9,.95);
+
+      border:
+        1px solid rgba(255,255,255,.12);
+
+      border-radius: 13px;
+
+      backdrop-filter:
+        blur(15px);
+
+      box-shadow:
+        0 18px 50px rgba(0,0,0,.55);
+    }
+
+    body.admin-mode
+    .editor {
+      display: block;
+    }
+
+    .editor.editing {
+      border-color:
+        var(--yellow);
+    }
+
+    .editor.merge-mode {
+      border-color:
+        var(--yellow);
+
+      box-shadow:
+        0 0 0 1px var(--yellow),
+        0 18px 50px rgba(0,0,0,.55);
+    }
+
+    .editor-kicker {
+      margin-bottom: 7px;
+
+      color: var(--yellow);
+
+      font-size: 9px;
+
+      font-weight: 900;
+    }
+
+    .editor h2 {
+      margin:
+        0 0 8px;
+    }
+
+    .editor-status {
+      margin-bottom: 13px;
+
+      color:
+        rgba(255,255,255,.60);
+
+      font-size: 11px;
+
+      line-height: 1.4;
+    }
+
+    .editor button {
+      width: 100%;
+
+      margin-top: 7px;
+
+      padding: 10px;
+
+      border: 0;
+
+      border-radius: 7px;
+
+      cursor: pointer;
+
+      font-size: 9px;
+
+      font-weight: 900;
+    }
+
+    .editor-primary {
+      background: var(--yellow);
+
+      color: #111;
+    }
+
+    .editor-secondary {
+      background:
+        rgba(255,255,255,.10);
+
+      color: white;
+    }
+
+    .editor-merge {
+      background:
+        rgba(255,234,0,.15);
+
+      color: var(--yellow);
+
+      border:
+        1px solid rgba(255,234,0,.32) !important;
+    }
+
+    .editor-danger {
+      background:
+        rgba(255,70,70,.14);
+
+      color:
+        #ff9c9c;
+    }
+
+    .point-count {
+      margin-top: 11px;
+
+      color:
+        rgba(255,255,255,.45);
+
+      font-size: 9px;
+    }
+
+    .merge-info {
+      margin-top: 8px;
+
+      color: var(--yellow);
+
+      font-size: 9px;
+
+      font-weight: 800;
+
+      line-height: 1.45;
+
+      display: none;
+    }
+
+    .merge-info.active {
+      display: block;
+    }
+
+
+    /* ==================================================
+       TABLET
+    ================================================== */
+
+    @media (max-width: 850px) {
+
+      .route-title-overlay {
+        left: 24px;
+        right: 24px;
+        bottom: 160px;
+
+        width: auto;
+      }
+
+      .bottom-ui {
+        left: 24px;
+        right: 24px;
+        bottom: 18px;
+
+        width: auto;
+      }
+
+      .details-grid {
+        grid-template-columns:
+          1fr 1.2fr;
+
+        gap: 16px;
+      }
+
+    }
+
+
+    /* ==================================================
+       PHONE
+    ================================================== */
+
+    @media (max-width: 620px) {
+
+      .map-vignette {
+        background:
+          radial-gradient(
+            ellipse at 70% 64%,
+            transparent 10%,
+            rgba(0,0,0,.08) 38%,
+            rgba(0,0,0,.28) 58%,
+            rgba(0,0,0,.58) 78%,
+            rgba(0,0,0,.85) 94%,
+            rgba(0,0,0,.98) 100%
+          );
+      }
+
+      .brand {
+        top: 18px;
+        right: 18px;
+      }
+
+      .brand-main {
+        font-size: 17px;
+
+        letter-spacing: .17em;
+      }
+
+      .brand-sub {
+        font-size: 7px;
+
+        letter-spacing: .28em;
+      }
+
+      .mountain-logo {
+        width: 62px;
+        height: 24px;
+      }
+
+      .compass {
+        top: 18px;
+        left: 16px;
+
+        transform:
+          scale(.82);
+
+        transform-origin:
+          top left;
+      }
+
+      .route-title-overlay {
+        left: 18px;
+        right: 18px;
+        bottom: 150px;
+
+        width: auto;
+      }
+
+      .route-title {
+        font-size: 52px;
+
+        line-height: .80;
+      }
+
+      .route-sector {
+        margin-top: 8px;
+
+        font-size: 8px;
+
+        letter-spacing: .27em;
+      }
+
+      .bottom-ui {
+        left: 18px;
+        right: 18px;
+        bottom: 12px;
+
+        width: auto;
+      }
+
+      .route-card {
+        padding:
+          11px 13px 9px;
+
+        border-radius: 11px;
+      }
+
+      .route-stats {
+        gap: 28px;
+      }
+
+      .stat-value {
+        font-size: 14px;
+      }
+
+      .stat-label {
+        font-size: 6px;
+
+        letter-spacing: .10em;
+      }
+
+      .details-toggle {
+        margin-top: 8px;
+
+        padding-top: 7px;
+      }
+
+      .details-toggle-title {
+        font-size: 7px;
+      }
+
+      .details-arrow {
+        width: 23px;
+        height: 23px;
+      }
+
+      .details-grid {
+        grid-template-columns: 1fr;
+
+        gap: 16px;
+      }
+
+      .map-marker {
+        transform:
+          translate(-11px,-11px);
+      }
+
+      .marker-symbol {
+        width: 22px;
+        height: 22px;
+
+        flex-basis: 22px;
+      }
+
+      .marker-value {
+        font-size: 11px;
+      }
+
+      .marker-type {
+        font-size: 6px;
+      }
+
+      .admin-badge {
+        left: 12px;
+        top: 100px;
+
+        font-size: 7px;
+      }
+
+      .editor {
+        left: 12px;
+        right: 12px;
+        top: 132px;
+
+        width: auto;
+
+        padding: 16px;
+      }
+
+      .editor h2 {
+        font-size: 28px;
+      }
+
+      .editor-status {
+        margin-bottom: 15px;
+
+        font-size: 12px;
+      }
+
+      .editor button {
+        margin-top: 7px;
+
+        padding: 11px;
+
+        font-size: 10px;
+      }
+
+    }
+
+  </style>
+</head>
+
+
+<body>
+
+  <div id="map"></div>
+
+  <div class="map-darken"></div>
+  <div class="map-vignette"></div>
+
+
+  <!-- ROUTE -->
+
+  <svg id="routeOverlay">
+
+    <polyline
+      id="routePath"
+      points=""
+    ></polyline>
+
+  </svg>
+
+
+  <!-- START -->
+
+  <div
+    class="map-marker endpoint-marker"
+    id="startMarker"
+  >
+
+    <div class="marker-symbol">
+
+      <div class="marker-dot"></div>
+
+    </div>
+
+    <div class="marker-copy">
+
+      <div class="marker-type">
+        START
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- MERGE -->
+
+  <div
+    class="map-marker merge-marker"
+    id="mergeMarker"
+  >
+
+    <div class="marker-symbol">
+
+      <div class="merge-icon"></div>
+
+    </div>
+
+    <div class="marker-copy">
+
+      <div class="marker-type">
+        MERGE
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- LOW -->
+
+  <div
+    class="map-marker"
+    id="lowMarker"
+  >
+
+    <div class="marker-symbol">
+
+      <div class="marker-low-icon"></div>
+
+    </div>
+
+    <div class="marker-copy">
+
+      <div
+        class="marker-value"
+        id="lowMarkerValue"
+      >
+        —
+      </div>
+
+      <div class="marker-type">
+        LOW POINT
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- HIGH -->
+
+  <div
+    class="map-marker"
+    id="highMarker"
+  >
+
+    <div class="marker-symbol">
+
+      <svg
+        class="marker-high-icon"
+        viewBox="0 0 20 14"
+      >
+
+        <path
+          d="
+          M1 13
+          L7 5
+          L10 8
+          L14 2
+          L19 13
+          "
+        />
+
+      </svg>
+
+    </div>
+
+    <div class="marker-copy">
+
+      <div
+        class="marker-value"
+        id="highMarkerValue"
+      >
+        —
+      </div>
+
+      <div class="marker-type">
+        HIGH POINT
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- BRAND -->
+
+  <div class="brand">
+
+    <div class="brand-mountain">
+
+      <svg
+        class="mountain-logo"
+        viewBox="0 0 80 30"
+      >
+
+        <path
+          d="
+          M2 26
+          L19 9
+          L28 18
+          L42 3
+          L55 17
+          L63 10
+          L78 26
+          "
+        />
+
+      </svg>
+
+    </div>
+
+    <div class="brand-main">
+      RAVEN ROCK
+    </div>
+
+    <div class="brand-sub">
+      TRAIL NETWORK
+    </div>
+
+  </div>
+
+
+  <!-- COMPASS -->
+
+  <div class="compass">
+
+    <div class="compass-n">
+      N
+    </div>
+
+    <svg
+      class="compass-svg"
+      viewBox="0 0 50 50"
+    >
+
+      <circle
+        cx="25"
+        cy="25"
+        r="14"
+      />
+
+      <line
+        x1="25"
+        y1="2"
+        x2="25"
+        y2="48"
+      />
+
+      <line
+        x1="2"
+        y1="25"
+        x2="48"
+        y2="25"
+      />
+
+      <polygon
+        class="north"
+        points="
+        25,3
+        20,22
+        25,18
+        30,22
+        "
+      />
+
+    </svg>
+
+    <div class="compass-label">
+      MAP NORTH
+    </div>
+
+  </div>
+
+
+  <!-- ROUTE TITLE -->
+
+  <div
+    class="route-title-overlay"
+    id="routeTitleOverlay"
+  >
+
+    <div class="route-title-decoration">
+
+      <div class="route-title-line"></div>
+
+      <svg
+        class="route-title-mountain"
+        viewBox="0 0 50 25"
+      >
+
+        <path
+          d="
+          M1 23
+          L12 10
+          L18 16
+          L27 3
+          L37 15
+          L42 10
+          L49 23
+          "
+        />
+
+      </svg>
+
+      <div class="route-title-line"></div>
+
+    </div>
+
+    <h1 class="route-title">
+      HIGHLINE
+    </h1>
+
+    <div class="route-sector">
+      ROMSÅS SECTOR
+    </div>
+
+  </div>
+
+
+  <!-- BOTTOM INFO -->
+
+  <div
+    class="bottom-ui"
+    id="bottomUi"
+  >
+
+    <div
+      class="route-card"
+      id="routeCard"
+    >
+
+      <div class="route-stats">
+
+
+        <!-- DISTANCE -->
+
+        <div class="stat">
+
+          <div
+            class="stat-value"
+            id="distanceValue"
+          >
+            —
+          </div>
+
+          <div class="stat-label">
+            DISTANCE
+          </div>
+
+        </div>
+
+
+        <!-- DIFFICULTY -->
+
+        <div class="stat">
+
+          <div class="stat-value">
+
+            <span
+              class="difficulty-dot difficulty-red"
+            ></span>
+
+          </div>
+
+          <div class="stat-label">
+            DIFFICULTY
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- DETAILS TOGGLE -->
+
+      <div
+        class="details-toggle"
+        onclick="toggleDetails()"
+      >
+
+        <div class="details-toggle-title">
+          TRAIL DETAILS
+        </div>
+
+        <div class="details-arrow">
+          ▲
+        </div>
+
+      </div>
+
+
+      <!-- DETAILS BODY -->
+
+      <div class="details-body">
+
+        <div class="details-grid">
+
+          <div class="route-description">
+
+            HIGHLINE følger terrenget gjennom skog,
+            svaberg og høyspentområdet før ruta kobler
+            seg tilbake på den tidligere stien og
+            returnerer til start.
+
+          </div>
+
+
+          <div>
+
+            <div class="elevation-heading">
+
+              <div class="elevation-title">
+                ELEVATION PROFILE
+              </div>
+
+              <div
+                class="elevation-range"
+                id="elevationRange"
+              >
+                LOADING…
+              </div>
+
+            </div>
+
+
+            <svg
+              class="elevation-chart"
+              viewBox="0 0 360 90"
+              preserveAspectRatio="none"
+            >
+
+              <line
+                class="elevation-grid"
+                x1="0"
+                y1="20"
+                x2="360"
+                y2="20"
+              />
+
+              <line
+                class="elevation-grid"
+                x1="0"
+                y1="45"
+                x2="360"
+                y2="45"
+              />
+
+              <line
+                class="elevation-baseline"
+                x1="0"
+                y1="78"
+                x2="360"
+                y2="78"
+              />
+
+              <path
+                id="elevationFill"
+                d=""
+              ></path>
+
+              <path
+                id="elevationPath"
+                d=""
+              ></path>
+
+            </svg>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ADMIN -->
+
+  <div class="admin-badge">
+    ADMIN MODE
+  </div>
+
+
+  <div
+    class="editor"
+    id="editor"
+  >
+
+    <div class="editor-kicker">
+      ROUTE EDITOR
+    </div>
+
+    <h2>
+      HIGHLINE
+    </h2>
+
+    <div
+      class="editor-status"
+      id="editorStatus"
+    >
+      Ruta er låst.
+    </div>
+
+
+    <button
+      class="editor-primary"
+      id="editModeButton"
+      onclick="toggleEditMode()"
+    >
+      UNLOCK ROUTE
+    </button>
+
+
+    <button
+      class="editor-merge"
+      id="mergeButton"
+      onclick="toggleMergeMode()"
+    >
+      MERGE ROUTE
+    </button>
+
+
+    <button
+      class="editor-secondary"
+      onclick="removeMerge()"
+    >
+      REMOVE MERGE
+    </button>
+
+
+    <button
+      class="editor-secondary"
+      onclick="undoPoint()"
+    >
+      UNDO LAST POINT
+    </button>
+
+
+    <button
+      class="editor-secondary"
+      onclick="exportGeoJSON()"
+    >
+      EXPORT UPDATED GEOJSON
+    </button>
+
+
+    <button
+      class="editor-danger"
+      onclick="lockRoute()"
+    >
+      LOCK ROUTE
+    </button>
+
+
+    <div
+      class="point-count"
+      id="pointCount"
+    >
+      —
+    </div>
+
+
+    <div
+      class="merge-info"
+      id="mergeInfo"
+    ></div>
+
+  </div>
+
+
+  <script>
+
+    let map;
+
+    let routePoints = [];
+
+    let projectionHelper;
+
+    let elevationService;
+
+    let elevationResults = [];
+
+    let lowPoint = null;
+    let highPoint = null;
+
+    let mergeSegmentIndex = null;
+    let mergeT = null;
+    let mergeLocation = null;
+
+    let editMode = false;
+    let mergeMode = false;
+
+    let resizeObserver = null;
+
+    let animationFrame = null;
+
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+
+    const adminMode =
+      params.get("edit") === "1";
+
+
+    if (adminMode) {
+
+      document.body.classList.add(
+        "admin-mode"
+      );
+
+    }
+
+
+    /* ==================================================
+       INIT
+    ================================================== */
+
+    async function initMap() {
+
+
+      const mapElement =
+        document.getElementById(
+          "map"
+        );
+
+
+      map =
+        new google.maps.Map(
+          mapElement,
+          {
+
+            center: {
+              lat: 59.96,
+              lng: 10.90
+            },
+
+            zoom: 16,
+
+            mapTypeId:
+              "satellite",
+
+            disableDefaultUI:
+              true,
+
+            clickableIcons:
+              false,
+
+            gestureHandling:
+              "greedy"
+
+          }
+        );
+
+
+      /*
+        GOOGLE MAP RESIZE
+      */
+
+      resizeObserver =
+        new ResizeObserver(
+          function() {
+
+            if (!map) {
+              return;
+            }
+
+
+            google.maps.event.trigger(
+              map,
+              "resize"
+            );
+
+
+            scheduleOverlayUpdate();
+
+            updateTitlePosition();
+
+          }
+        );
+
+
+      resizeObserver.observe(
+        mapElement
+      );
+
+
+      window.addEventListener(
+        "resize",
+        function() {
+
+          if (!map) {
+            return;
+          }
+
+
+          google.maps.event.trigger(
+            map,
+            "resize"
+          );
+
+
+          scheduleOverlayUpdate();
+
+          updateTitlePosition();
+
+        }
+      );
+
+
+      const {
+        ElevationService
+      } =
+        await google.maps.importLibrary(
+          "elevation"
+        );
+
+
+      elevationService =
+        new ElevationService();
+
+
+      class ProjectionHelper
+        extends google.maps.OverlayView {
+
+        onAdd() {}
+
+        draw() {
+
+          updateSVGRoute();
+
+        }
+
+        onRemove() {}
+
+      }
+
+
+      projectionHelper =
+        new ProjectionHelper();
+
+
+      projectionHelper.setMap(
+        map
+      );
+
+
+      await loadHighline();
+
+
+      map.addListener(
+        "bounds_changed",
+        scheduleOverlayUpdate
+      );
+
+
+      map.addListener(
+        "zoom_changed",
+        scheduleOverlayUpdate
+      );
+
+
+      map.addListener(
+        "center_changed",
+        scheduleOverlayUpdate
+      );
+
+
+      map.addListener(
+        "idle",
+        scheduleOverlayUpdate
+      );
+
+
+      /*
+        ROUTE EDITING
+      */
+
+      map.addListener(
+        "click",
+        async function(event) {
+
+          if (
+            !adminMode ||
+            !editMode ||
+            mergeMode ||
+            !event.latLng
+          ) {
+            return;
+          }
+
+
+          if (
+            mergeLocation !== null
+          ) {
+
+            await removeMerge();
+
+          }
+
+
+          routePoints.push({
+
+            lat:
+              event.latLng.lat(),
+
+            lng:
+              event.latLng.lng()
+
+          });
+
+
+          await refreshRoute();
+
+        }
+      );
+
+
+      /*
+        CLICK ROUTE
+      */
+
+      document
+        .getElementById(
+          "routePath"
+        )
+        .addEventListener(
+          "click",
+          async function(event) {
+
+            event.stopPropagation();
+
+
+            if (
+              adminMode &&
+              mergeMode
+            ) {
+
+              await setMergeFromMouseEvent(
+                event
+              );
+
+              return;
+
+            }
+
+
+            openDetails();
+
+          }
+        );
+
+    }
+
+
+    /* ==================================================
+       LOAD ROUTE
+    ================================================== */
+
+    async function loadHighline() {
+
+
+      const response =
+        await fetch(
+          "highline.geojson"
+        );
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          "Could not load highline.geojson"
+        );
+
+      }
+
+
+      const geojson =
+        await response.json();
+
+
+      routePoints =
+        geojson
+          .geometry
+          .coordinates
+          .map(
+            coordinate => ({
+
+              lat:
+                coordinate[1],
+
+              lng:
+                coordinate[0]
+
+            })
+          );
+
+
+      if (
+        geojson.properties &&
+        Number.isInteger(
+          geojson.properties
+            .mergeSegmentIndex
+        ) &&
+        typeof
+          geojson.properties.mergeLat
+          === "number" &&
+        typeof
+          geojson.properties.mergeLng
+          === "number"
+      ) {
+
+
+        mergeSegmentIndex =
+          geojson.properties
+            .mergeSegmentIndex;
+
+
+        mergeT =
+          typeof
+            geojson.properties.mergeT
+            === "number"
+
+            ? geojson.properties.mergeT
+
+            : 0;
+
+
+        mergeLocation = {
+
+          lat:
+            geojson.properties
+              .mergeLat,
+
+          lng:
+            geojson.properties
+              .mergeLng
+
+        };
+
+      }
+
+
+      fitRoute();
+
+      updatePointCount();
+
+      updateDistance();
+
+      updateMergeUI();
+
+
+      await updateElevation();
+
+
+      setTimeout(
+        function() {
+
+          updateSVGRoute();
+
+          updateTitlePosition();
+
+        },
+        250
+      );
+
+    }
+
+
+    /* ==================================================
+       FIT ROUTE
+    ================================================== */
+
+    function fitRoute() {
+
+
+      const bounds =
+        new google.maps.LatLngBounds();
+
+
+      routePoints.forEach(
+        point =>
+          bounds.extend(
+            point
+          )
+      );
+
+
+      const mobile =
+        window.innerWidth <= 620;
+
+
+      map.fitBounds(
+        bounds,
+        {
+
+          top:
+            mobile ? 105 : 90,
+
+          right:
+            mobile ? 40 : 90,
+
+          bottom:
+            mobile ? 235 : 245,
+
+          left:
+            mobile ? 40 : 90
+
+        }
+      );
+
+    }
+
+
+    /* ==================================================
+       DRAW ROUTE
+    ================================================== */
+
+    function scheduleOverlayUpdate() {
+
+
+      if (animationFrame) {
+
+        cancelAnimationFrame(
+          animationFrame
+        );
+
+      }
+
+
+      animationFrame =
+        requestAnimationFrame(
+          updateSVGRoute
+        );
+
+    }
+
+
+    function updateSVGRoute() {
+
+
+      if (
+        !projectionHelper ||
+        routePoints.length < 2
+      ) {
+        return;
+      }
+
+
+      const projection =
+        projectionHelper
+          .getProjection();
+
+
+      if (!projection) {
+        return;
+      }
+
+
+      const pixels =
+        routePoints
+          .map(
+            point =>
+
+              projection
+                .fromLatLngToContainerPixel(
+                  new google.maps.LatLng(
+                    point.lat,
+                    point.lng
+                  )
+                )
+
+          )
+          .filter(Boolean);
+
+
+      const pointString =
+        pixels
+          .map(
+            point =>
+              `${point.x},${point.y}`
+          )
+          .join(" ");
+
+
+      document
+        .getElementById(
+          "routePath"
+        )
+        .setAttribute(
+          "points",
+          pointString
+        );
+
+
+      positionMarker(
+        "startMarker",
+        routePoints[0]
+      );
+
+
+      if (
+        mergeLocation
+      ) {
+
+        positionMarker(
+          "mergeMarker",
+          mergeLocation
+        );
+
+      }
+
+      else {
+
+        document
+          .getElementById(
+            "mergeMarker"
+          )
+          .style
+          .display =
+            "none";
+
+      }
+
+
+      if (lowPoint) {
+
+        positionMarker(
+          "lowMarker",
+          lowPoint.location
+        );
+
+      }
+
+
+      if (highPoint) {
+
+        positionMarker(
+          "highMarker",
+          highPoint.location
+        );
+
+      }
+
+    }
+
+
+    function positionMarker(
+      id,
+      location
+    ) {
+
+
+      const projection =
+        projectionHelper
+          .getProjection();
+
+
+      if (!projection) {
+        return;
+      }
+
+
+      const latLng =
+        location instanceof
+        google.maps.LatLng
+
+          ? location
+
+          : new google.maps.LatLng(
+              location.lat,
+              location.lng
+            );
+
+
+      const point =
+        projection
+          .fromLatLngToContainerPixel(
+            latLng
+          );
+
+
+      if (!point) {
+        return;
+      }
+
+
+      const marker =
+        document.getElementById(
+          id
+        );
+
+
+      marker.style.left =
+        point.x + "px";
+
+
+      marker.style.top =
+        point.y + "px";
+
+
+      marker.style.display =
+        "flex";
+
+    }
+
+
+    /* ==================================================
+       DYNAMIC HIGHLINE POSITION
+    ================================================== */
+
+    function updateTitlePosition() {
+
+
+      const card =
+        document.getElementById(
+          "routeCard"
+        );
+
+
+      const title =
+        document.getElementById(
+          "routeTitleOverlay"
+        );
+
+
+      const bottomUi =
+        document.getElementById(
+          "bottomUi"
+        );
+
+
+      if (
+        !card ||
+        !title ||
+        !bottomUi
+      ) {
+        return;
+      }
+
+
+      /*
+        Når boksen er lukket:
+        bruk normal CSS-posisjon.
+      */
+
+      if (
+        !card.classList.contains(
+          "expanded"
+        )
+      ) {
+
+        title.style.bottom =
+          "";
+
+        return;
+
+      }
+
+
+      /*
+        Når boksen er åpen:
+
+        Mål den faktiske toppen av boksen
+        på skjermen, og legg HIGHLINE
+        rett over den.
+
+        Dermed fungerer dette på
+        desktop, iPad og iPhone uansett
+        hvor høy Trail Details blir.
+      */
+
+
+      requestAnimationFrame(
+        function() {
+
+
+          const rect =
+            bottomUi
+              .getBoundingClientRect();
+
+
+          const distanceFromBottom =
+            window.innerHeight -
+            rect.top;
+
+
+          let gap = 18;
+
+
+          if (
+            window.innerWidth <= 620
+          ) {
+
+            gap = 14;
+
+          }
+
+          else if (
+            window.innerWidth <= 850
+          ) {
+
+            gap = 16;
+
+          }
+
+
+          title.style.bottom =
+            (
+              distanceFromBottom +
+              gap
+            )
+            +
+            "px";
+
+        }
+      );
+
+    }
+
+
+    function openDetails() {
+
+
+      const card =
+        document.getElementById(
+          "routeCard"
+        );
+
+
+      card.classList.add(
+        "expanded"
+      );
+
+
+      updateTitlePosition();
+
+    }
+
+
+    function toggleDetails() {
+
+
+      const card =
+        document.getElementById(
+          "routeCard"
+        );
+
+
+      card.classList.toggle(
+        "expanded"
+      );
+
+
+      updateTitlePosition();
+
+    }
+
+
+    /* ==================================================
+       MERGE
+    ================================================== */
+
+    async function setMergeFromMouseEvent(
+      event
+    ) {
+
+
+      const projection =
+        projectionHelper
+          .getProjection();
+
+
+      if (!projection) {
+        return;
+      }
+
+
+      const mapRect =
+        document
+          .getElementById(
+            "map"
+          )
+          .getBoundingClientRect();
+
+
+      const clickX =
+        event.clientX -
+        mapRect.left;
+
+
+      const clickY =
+        event.clientY -
+        mapRect.top;
+
+
+      const IGNORE_LAST_POINTS =
+        8;
+
+
+      const lastCandidateSegment =
+        routePoints.length -
+        IGNORE_LAST_POINTS -
+        1;
+
+
+      if (
+        lastCandidateSegment < 0
+      ) {
+
+        setEditorStatus(
+          "Ruta er for kort til å sette merge."
+        );
+
+        return;
+
+      }
+
+
+      let best = null;
+
+
+      for (
+        let i = 0;
+        i <= lastCandidateSegment;
+        i++
+      ) {
+
+
+        const a =
+          projection
+            .fromLatLngToContainerPixel(
+              new google.maps.LatLng(
+                routePoints[i].lat,
+                routePoints[i].lng
+              )
+            );
+
+
+        const b =
+          projection
+            .fromLatLngToContainerPixel(
+              new google.maps.LatLng(
+                routePoints[i + 1].lat,
+                routePoints[i + 1].lng
+              )
+            );
+
+
+        if (!a || !b) {
+          continue;
+        }
+
+
+        const result =
+          closestPointOnSegment(
+            clickX,
+            clickY,
+            a.x,
+            a.y,
+            b.x,
+            b.y
+          );
+
+
+        if (
+          !best ||
+          result.distance <
+          best.distance
+        ) {
+
+          best = {
+
+            segmentIndex:
+              i,
+
+            t:
+              result.t,
+
+            x:
+              result.x,
+
+            y:
+              result.y,
+
+            distance:
+              result.distance
+
+          };
+
+        }
+
+      }
+
+
+      if (
+        !best ||
+        best.distance > 24
+      ) {
+
+        setEditorStatus(
+          "Klikk nærmere den eksisterende gule ruta."
+        );
+
+        return;
+
+      }
+
+
+      const snappedLatLng =
+        projection
+          .fromContainerPixelToLatLng(
+            new google.maps.Point(
+              best.x,
+              best.y
+            )
+          );
+
+
+      if (!snappedLatLng) {
+        return;
+      }
+
+
+      if (
+        mergeLocation !== null
+      ) {
+
+        removeMergeEndpointOnly();
+
+      }
+
+
+      mergeSegmentIndex =
+        best.segmentIndex;
+
+
+      mergeT =
+        best.t;
+
+
+      mergeLocation = {
+
+        lat:
+          snappedLatLng.lat(),
+
+        lng:
+          snappedLatLng.lng()
+
+      };
+
+
+      routePoints.push({
+
+        lat:
+          mergeLocation.lat,
+
+        lng:
+          mergeLocation.lng
+
+      });
+
+
+      mergeMode =
+        false;
+
+
+      document.body.classList.remove(
+        "merge-active"
+      );
+
+
+      document
+        .getElementById(
+          "editor"
+        )
+        .classList
+        .remove(
+          "merge-mode"
+        );
+
+
+      document
+        .getElementById(
+          "mergeButton"
+        )
+        .innerText =
+          "MERGE ROUTE";
+
+
+      await refreshRoute();
+
+
+      const returnMeters =
+        calculateReturnDistance();
+
+
+      setEditorStatus(
+        "Merge satt. Returen til START er lagt til distansen."
+      );
+
+
+      updateMergeUI(
+        returnMeters
+      );
+
+    }
+
+
+    function closestPointOnSegment(
+      px,
+      py,
+      ax,
+      ay,
+      bx,
+      by
+    ) {
+
+
+      const abx =
+        bx - ax;
+
+
+      const aby =
+        by - ay;
+
+
+      const abLengthSquared =
+        abx * abx +
+        aby * aby;
+
+
+      let t = 0;
+
+
+      if (
+        abLengthSquared > 0
+      ) {
+
+        t =
+          (
+            (px - ax) * abx +
+            (py - ay) * aby
+          )
+          /
+          abLengthSquared;
+
+      }
+
+
+      t =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            t
+          )
+        );
+
+
+      const x =
+        ax +
+        t * abx;
+
+
+      const y =
+        ay +
+        t * aby;
+
+
+      const dx =
+        px - x;
+
+
+      const dy =
+        py - y;
+
+
+      return {
+
+        x,
+        y,
+        t,
+
+        distance:
+          Math.sqrt(
+            dx * dx +
+            dy * dy
+          )
+
+      };
+
+    }
+
+
+    function toggleMergeMode() {
+
+
+      if (!adminMode) {
+        return;
+      }
+
+
+      mergeMode =
+        !mergeMode;
+
+
+      editMode =
+        false;
+
+
+      const editor =
+        document.getElementById(
+          "editor"
+        );
+
+
+      editor.classList.remove(
+        "editing"
+      );
+
+
+      document
+        .getElementById(
+          "editModeButton"
+        )
+        .innerText =
+          "UNLOCK ROUTE";
+
+
+      if (mergeMode) {
+
+
+        editor.classList.add(
+          "merge-mode"
+        );
+
+
+        document.body.classList.add(
+          "merge-active"
+        );
+
+
+        document
+          .getElementById(
+            "mergeButton"
+          )
+          .innerText =
+            "CANCEL MERGE";
+
+
+        setEditorStatus(
+          "MERGE MODE — klikk direkte på den tidligere delen av den gule ruta."
+        );
+
+      }
+
+      else {
+
+
+        editor.classList.remove(
+          "merge-mode"
+        );
+
+
+        document.body.classList.remove(
+          "merge-active"
+        );
+
+
+        document
+          .getElementById(
+            "mergeButton"
+          )
+          .innerText =
+            "MERGE ROUTE";
+
+
+        setEditorStatus(
+          "Ruta er låst."
+        );
+
+      }
+
+    }
+
+
+    function removeMergeEndpointOnly() {
+
+
+      if (
+        mergeLocation === null
+      ) {
+        return;
+      }
+
+
+      if (
+        routePoints.length > 1
+      ) {
+
+        routePoints.pop();
+
+      }
+
+    }
+
+
+    async function removeMerge() {
+
+
+      if (
+        mergeLocation !== null
+      ) {
+
+        removeMergeEndpointOnly();
+
+      }
+
+
+      mergeSegmentIndex =
+        null;
+
+
+      mergeT =
+        null;
+
+
+      mergeLocation =
+        null;
+
+
+      mergeMode =
+        false;
+
+
+      document.body.classList.remove(
+        "merge-active"
+      );
+
+
+      document
+        .getElementById(
+          "mergeMarker"
+        )
+        .style
+        .display =
+          "none";
+
+
+      document
+        .getElementById(
+          "editor"
+        )
+        .classList
+        .remove(
+          "merge-mode"
+        );
+
+
+      document
+        .getElementById(
+          "mergeButton"
+        )
+        .innerText =
+          "MERGE ROUTE";
+
+
+      setEditorStatus(
+        "Merge fjernet."
+      );
+
+
+      updateMergeUI();
+
+
+      await refreshRoute();
+
+    }
+
+
+    /* ==================================================
+       RETURN ROUTE
+    ================================================== */
+
+    function getReturnRoute() {
+
+
+      if (
+        mergeLocation === null ||
+        mergeSegmentIndex === null
+      ) {
+
+        return [];
+
+      }
+
+
+      const result = [
+
+        {
+          lat:
+            mergeLocation.lat,
+
+          lng:
+            mergeLocation.lng
+        }
+
+      ];
+
+
+      for (
+        let i = mergeSegmentIndex;
+        i >= 0;
+        i--
+      ) {
+
+        result.push({
+
+          lat:
+            routePoints[i].lat,
+
+          lng:
+            routePoints[i].lng
+
+        });
+
+      }
+
+
+      return result;
+
+    }
+
+
+    function getDrivenRoute() {
+
+
+      if (
+        mergeLocation === null
+      ) {
+
+        return [
+          ...routePoints
+        ];
+
+      }
+
+
+      const returnRoute =
+        getReturnRoute();
+
+
+      return [
+
+        ...routePoints,
+
+        ...returnRoute.slice(1)
+
+      ];
+
+    }
+
+
+    /* ==================================================
+       DISTANCE
+    ================================================== */
+
+    function getLineDistance(
+      points
+    ) {
+
+
+      let meters = 0;
+
+
+      for (
+        let i = 1;
+        i < points.length;
+        i++
+      ) {
+
+        meters +=
+          haversineDistance(
+            points[i - 1],
+            points[i]
+          );
+
+      }
+
+
+      return meters;
+
+    }
+
+
+    function calculateReturnDistance() {
+
+
+      return getLineDistance(
+        getReturnRoute()
+      );
+
+    }
+
+
+    function updateDistance() {
+
+
+      const drivenRoute =
+        getDrivenRoute();
+
+
+      const meters =
+        getLineDistance(
+          drivenRoute
+        );
+
+
+      document
+        .getElementById(
+          "distanceValue"
+        )
+        .innerText =
+          (
+            meters /
+            1000
+          )
+          .toFixed(2)
+          +
+          " KM";
+
+    }
+
+
+    function haversineDistance(
+      a,
+      b
+    ) {
+
+
+      const R =
+        6371000;
+
+
+      const rad =
+        Math.PI / 180;
+
+
+      const aLat =
+        typeof a.lat === "function"
+          ? a.lat()
+          : a.lat;
+
+
+      const aLng =
+        typeof a.lng === "function"
+          ? a.lng()
+          : a.lng;
+
+
+      const bLat =
+        typeof b.lat === "function"
+          ? b.lat()
+          : b.lat;
+
+
+      const bLng =
+        typeof b.lng === "function"
+          ? b.lng()
+          : b.lng;
+
+
+      const lat1 =
+        aLat * rad;
+
+
+      const lat2 =
+        bLat * rad;
+
+
+      const dLat =
+        (
+          bLat -
+          aLat
+        )
+        *
+        rad;
+
+
+      const dLng =
+        (
+          bLng -
+          aLng
+        )
+        *
+        rad;
+
+
+      const value =
+
+        Math.sin(
+          dLat / 2
+        ) ** 2
+
+        +
+
+        Math.cos(lat1)
+        *
+        Math.cos(lat2)
+        *
+        Math.sin(
+          dLng / 2
+        ) ** 2;
+
+
+      return (
+        2
+        *
+        R
+        *
+        Math.atan2(
+          Math.sqrt(value),
+          Math.sqrt(1 - value)
+        )
+      );
+
+    }
+
+
+    /* ==================================================
+       ELEVATION
+    ================================================== */
+
+    async function updateElevation() {
+
+
+      const drivenRoute =
+        getDrivenRoute();
+
+
+      if (
+        !elevationService ||
+        drivenRoute.length < 2
+      ) {
+        return;
+      }
+
+
+      try {
+
+
+        const response =
+          await elevationService
+            .getElevationAlongPath({
+
+              path:
+                drivenRoute,
+
+              samples:
+                256
+
+            });
+
+
+        elevationResults =
+          response.results;
+
+
+        if (
+          !elevationResults ||
+          elevationResults.length === 0
+        ) {
+          return;
+        }
+
+
+        lowPoint =
+          elevationResults[0];
+
+
+        highPoint =
+          elevationResults[0];
+
+
+        elevationResults
+          .forEach(
+            result => {
+
+
+              if (
+                result.elevation <
+                lowPoint.elevation
+              ) {
+
+                lowPoint =
+                  result;
+
+              }
+
+
+              if (
+                result.elevation >
+                highPoint.elevation
+              ) {
+
+                highPoint =
+                  result;
+
+              }
+
+            }
+          );
+
+
+        const low =
+          Math.round(
+            lowPoint.elevation
+          );
+
+
+        const high =
+          Math.round(
+            highPoint.elevation
+          );
+
+
+        document
+          .getElementById(
+            "elevationRange"
+          )
+          .innerText =
+            low
+            +
+            "–"
+            +
+            high
+            +
+            " MOH";
+
+
+        document
+          .getElementById(
+            "lowMarkerValue"
+          )
+          .innerText =
+            low
+            +
+            " MOH";
+
+
+        document
+          .getElementById(
+            "highMarkerValue"
+          )
+          .innerText =
+            high
+            +
+            " MOH";
+
+
+        drawElevationProfile(
+          elevationResults
+        );
+
+
+        updateSVGRoute();
+
+      }
+
+      catch (error) {
+
+
+        console.error(
+          "Elevation error:",
+          error
+        );
+
+
+        document
+          .getElementById(
+            "elevationRange"
+          )
+          .innerText =
+            "ELEVATION UNAVAILABLE";
+
+      }
+
+    }
+
+
+    /* ==================================================
+       ELEVATION GRAPH
+    ================================================== */
+
+    function drawElevationProfile(
+      results
+    ) {
+
+
+      const width =
+        360;
+
+
+      const top =
+        8;
+
+
+      const bottom =
+        78;
+
+
+      const elevations =
+        results.map(
+          result =>
+            result.elevation
+        );
+
+
+      const min =
+        Math.min(
+          ...elevations
+        );
+
+
+      const max =
+        Math.max(
+          ...elevations
+        );
+
+
+      const range =
+        Math.max(
+          max - min,
+          1
+        );
+
+
+      const points =
+        elevations.map(
+          (elevation, index) => {
+
+
+            const x =
+              (
+                index /
+                (
+                  elevations.length - 1
+                )
+              )
+              *
+              width;
+
+
+            const y =
+              bottom
+              -
+              (
+                (
+                  elevation -
+                  min
+                )
+                /
+                range
+              )
+              *
+              (
+                bottom -
+                top
+              );
+
+
+            return {
+              x,
+              y
+            };
+
+          }
+        );
+
+
+      const line =
+        points
+          .map(
+            (point, index) => {
+
+              return (
+                (
+                  index === 0
+                    ? "M"
+                    : "L"
+                )
+                +
+                point.x.toFixed(2)
+                +
+                " "
+                +
+                point.y.toFixed(2)
+              );
+
+            }
+          )
+          .join(
+            " "
+          );
+
+
+      const fill =
+        line
+        +
+        " L "
+        +
+        width
+        +
+        " "
+        +
+        bottom
+        +
+        " L 0 "
+        +
+        bottom
+        +
+        " Z";
+
+
+      document
+        .getElementById(
+          "elevationPath"
+        )
+        .setAttribute(
+          "d",
+          line
+        );
+
+
+      document
+        .getElementById(
+          "elevationFill"
+        )
+        .setAttribute(
+          "d",
+          fill
+        );
+
+    }
+
+
+    /* ==================================================
+       REFRESH
+    ================================================== */
+
+    async function refreshRoute() {
+
+
+      updatePointCount();
+
+      updateDistance();
+
+      updateSVGRoute();
+
+      updateMergeUI();
+
+      updateTitlePosition();
+
+      await updateElevation();
+
+    }
+
+
+    /* ==================================================
+       MERGE INFO
+    ================================================== */
+
+    function updateMergeUI(
+      explicitMeters = null
+    ) {
+
+
+      const info =
+        document.getElementById(
+          "mergeInfo"
+        );
+
+
+      if (
+        mergeLocation !== null
+      ) {
+
+
+        const meters =
+          explicitMeters !== null
+            ? explicitMeters
+            : calculateReturnDistance();
+
+
+        info.classList.add(
+          "active"
+        );
+
+
+        info.innerHTML =
+          "MERGE SET"
+          +
+          "<br>"
+          +
+          "RETURN +"
+          +
+          (
+            meters /
+            1000
+          ).toFixed(2)
+          +
+          " KM";
+
+      }
+
+      else {
+
+
+        info.classList.remove(
+          "active"
+        );
+
+
+        info.innerText =
+          "";
+
+      }
+
+    }
+
+
+    /* ==================================================
+       EDIT MODE
+    ================================================== */
+
+    function toggleEditMode() {
+
+
+      if (!adminMode) {
+        return;
+      }
+
+
+      mergeMode =
+        false;
+
+
+      document.body.classList.remove(
+        "merge-active"
+      );
+
+
+      document
+        .getElementById(
+          "editor"
+        )
+        .classList
+        .remove(
+          "merge-mode"
+        );
+
+
+      document
+        .getElementById(
+          "mergeButton"
+        )
+        .innerText =
+          "MERGE ROUTE";
+
+
+      editMode =
+        !editMode;
+
+
+      const editor =
+        document.getElementById(
+          "editor"
+        );
+
+
+      if (editMode) {
+
+
+        editor.classList.add(
+          "editing"
+        );
+
+
+        document
+          .getElementById(
+            "editModeButton"
+          )
+          .innerText =
+            "FINISH EDITING";
+
+
+        setEditorStatus(
+          "ROUTE UNLOCKED — klikk på kartet for å legge til punkter."
+        );
+
+      }
+
+      else {
+
+
+        editor.classList.remove(
+          "editing"
+        );
+
+
+        document
+          .getElementById(
+            "editModeButton"
+          )
+          .innerText =
+            "UNLOCK ROUTE";
+
+
+        setEditorStatus(
+          "Ruta er låst."
+        );
+
+      }
+
+    }
+
+
+    async function undoPoint() {
+
+
+      if (
+        !adminMode ||
+        !editMode ||
+        routePoints.length < 2
+      ) {
+        return;
+      }
+
+
+      if (
+        mergeLocation !== null
+      ) {
+
+        await removeMerge();
+
+        return;
+
+      }
+
+
+      routePoints.pop();
+
+
+      await refreshRoute();
+
+    }
+
+
+    function lockRoute() {
+
+
+      editMode =
+        false;
+
+
+      mergeMode =
+        false;
+
+
+      document.body.classList.remove(
+        "merge-active"
+      );
+
+
+      const editor =
+        document.getElementById(
+          "editor"
+        );
+
+
+      editor.classList.remove(
+        "editing"
+      );
+
+
+      editor.classList.remove(
+        "merge-mode"
+      );
+
+
+      document
+        .getElementById(
+          "editModeButton"
+        )
+        .innerText =
+          "UNLOCK ROUTE";
+
+
+      document
+        .getElementById(
+          "mergeButton"
+        )
+        .innerText =
+          "MERGE ROUTE";
+
+
+      setEditorStatus(
+        "Ruta er låst."
+      );
+
+    }
+
+
+    function updatePointCount() {
+
+
+      document
+        .getElementById(
+          "pointCount"
+        )
+        .innerText =
+          routePoints.length
+          +
+          " POINTS";
+
+    }
+
+
+    function setEditorStatus(
+      text
+    ) {
+
+
+      document
+        .getElementById(
+          "editorStatus"
+        )
+        .innerText =
+          text;
+
+    }
+
+
+    /* ==================================================
+       EXPORT
+    ================================================== */
+
+    function exportGeoJSON() {
+
+
+      if (!adminMode) {
+        return;
+      }
+
+
+      const geojson = {
+
+        type:
+          "Feature",
+
+        properties: {
+
+          name:
+            "HIGHLINE",
+
+          sector:
+            "Romsås",
+
+          difficulty:
+            "RED",
+
+          routeType:
+            "LOOP",
+
+          mergeSegmentIndex:
+            mergeSegmentIndex,
+
+          mergeT:
+            mergeT,
+
+          mergeLat:
+            mergeLocation
+              ? mergeLocation.lat
+              : null,
+
+          mergeLng:
+            mergeLocation
+              ? mergeLocation.lng
+              : null,
+
+          minElevation:
+            lowPoint
+              ? Math.round(
+                  lowPoint.elevation
+                )
+              : null,
+
+          maxElevation:
+            highPoint
+              ? Math.round(
+                  highPoint.elevation
+                )
+              : null
+
+        },
+
+        geometry: {
+
+          type:
+            "LineString",
+
+          coordinates:
+            routePoints.map(
+              point => [
+
+                point.lng,
+
+                point.lat
+
+              ]
+            )
+
+        }
+
+      };
+
+
+      const blob =
+        new Blob(
+          [
+            JSON.stringify(
+              geojson,
+              null,
+              2
+            )
+          ],
+          {
+            type:
+              "application/geo+json"
+          }
+        );
+
+
+      const url =
+        URL.createObjectURL(
+          blob
+        );
+
+
+      const link =
+        document.createElement(
+          "a"
+        );
+
+
+      link.href =
+        url;
+
+
+      link.download =
+        "highline.geojson";
+
+
+      link.click();
+
+
+      URL.revokeObjectURL(
+        url
+      );
+
+    }
+
+  </script>
+
+
+  <script
+    async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBoGnwAhXsE1tTcHPo1gMRjsYA2n3MkPsU&loading=async&callback=initMap">
+  </script>
+
+</body>
+</html>
